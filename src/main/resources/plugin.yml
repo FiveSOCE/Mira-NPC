@@ -1,0 +1,14 @@
+name: MiraNPC
+version: 0.1.0
+main: com.mira.npc.MiraNPCPlugin
+api-version: '1.21'
+authors: [FiveS]
+commands:
+  mnpc:
+    description: MiraNPC editor and placement commands
+    usage: /mnpc
+    permission: miranpc.admin
+permissions:
+  miranpc.admin:
+    description: Access to all MiraNPC creation, editing and placement tools
+    default: op
