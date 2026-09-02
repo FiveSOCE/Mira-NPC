@@ -1,0 +1,14 @@
+settings:
+  placement-range: 8
+  enforce-position-ticks: 20
+  default-executor: PLAYER
+
+messages:
+  no-permission: "&cYou do not have permission to use MiraNPC admin tools."
+  no-target-block: "&cLook at a block within range before placing an NPC."
+  unknown-npc: "&cUnknown NPC: &f%npc%"
+  placed: "&aPlaced NPC &f%npc%&a."
+  removed: "&aRemoved NPC &f%npc%&a."
+  saved: "&aSaved NPC &f%npc%&a."
+  deleted: "&aDeleted NPC definition &f%npc%&a."
+  command-failed: "&cThat NPC command could not be executed."
