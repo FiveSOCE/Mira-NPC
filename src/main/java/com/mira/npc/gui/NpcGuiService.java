@@ -195,7 +195,7 @@ public final class NpcGuiService {
     }
 
     private static String normalize(String value) {
-        return value.toLowerCase(Locale.ROOT).replace(' ', '_').replaceAll("[^a-z0-9_\-]", "");
+        return value.toLowerCase(Locale.ROOT).replace(' ', '_').replaceAll("[^a-z0-9_-]", "");
     }
 
     private static String stripSlash(String value) {
