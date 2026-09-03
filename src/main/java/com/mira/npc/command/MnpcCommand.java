@@ -33,7 +33,7 @@ public final class MnpcCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("MiraNPC admin commands are player-only.");
+            plugin.msg(sender, "&cMiraNPC admin commands are player-only.");
             return true;
         }
         if (!player.hasPermission("miranpc.admin")) {
