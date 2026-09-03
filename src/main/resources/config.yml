@@ -1,6 +1,7 @@
 settings:
   placement-range: 8
   enforce-position-ticks: 20
+  dynamic-name-refresh-ticks: 100
   default-executor: PLAYER
 
 messages:
