@@ -1,0 +1,40 @@
+name: Release v0.1.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v0.1.1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tested source
+        uses: actions/checkout@v4
+        with:
+          ref: 71f37c1b0d0dc635e791f8faabdd32ee50bdd6fd
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10'
+      - name: Build
+        run: gradle clean build --stacktrace
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.1 \
+            build/libs/MiraNPC-0.1.1.jar \
+            --target 71f37c1b0d0dc635e791f8faabdd32ee50bdd6fd \
+            --title "MiraNPC v0.1.1" \
+            --notes "Dynamic NPC display-name update. MiraNPC now resolves PlaceholderAPI placeholders inside NPC names and refreshes them on a configurable interval, allowing live MiraFactions FTop NPCs such as #1 faction name and wealth displays without hard-coding faction data."
