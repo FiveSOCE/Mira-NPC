@@ -4,6 +4,7 @@ import com.mira.npc.command.MnpcCommand;
 import com.mira.npc.gui.NpcGuiService;
 import com.mira.npc.listener.NpcGuiListener;
 import com.mira.npc.listener.NpcInteractionListener;
+import com.mira.npc.service.DynamicNpcNameService;
 import com.mira.npc.service.NpcService;
 import com.mira.npc.util.TextUtil;
 import org.bukkit.command.PluginCommand;
@@ -20,6 +21,7 @@ public final class MiraNPCPlugin extends JavaPlugin {
 
         npcService = new NpcService(this);
         guiService = new NpcGuiService(this, npcService);
+        DynamicNpcNameService dynamicNames = new DynamicNpcNameService(this, npcService);
 
         getServer().getPluginManager().registerEvents(new NpcGuiListener(this, guiService), this);
         getServer().getPluginManager().registerEvents(new NpcInteractionListener(this, npcService), this);
@@ -34,6 +36,8 @@ public final class MiraNPCPlugin extends JavaPlugin {
         getServer().getScheduler().runTask(this, npcService::restoreAll);
         long ticks = Math.max(1L, getConfig().getLong("settings.enforce-position-ticks", 20L));
         getServer().getScheduler().runTaskTimer(this, npcService::enforcePositions, ticks, ticks);
+        long dynamicNameTicks = Math.max(20L, getConfig().getLong("settings.dynamic-name-refresh-ticks", 100L));
+        getServer().getScheduler().runTaskTimer(this, dynamicNames::refresh, dynamicNameTicks, dynamicNameTicks);
 
         getLogger().info("MiraNPC v" + getPluginMeta().getVersion() + " enabled.");
     }
