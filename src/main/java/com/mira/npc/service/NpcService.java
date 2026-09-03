@@ -10,7 +10,6 @@ import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.persistence.PersistentDataType;
@@ -50,23 +49,15 @@ public final class NpcService {
                 String command = definitionsYaml.getString(base + ".command", "");
                 String rawExecutor = definitionsYaml.getString(base + ".executor", "PLAYER");
                 NpcDefinition.Executor executor;
-                try {
-                    executor = NpcDefinition.Executor.valueOf(rawExecutor.toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException ex) {
-                    executor = NpcDefinition.Executor.PLAYER;
-                }
+                try { executor = NpcDefinition.Executor.valueOf(rawExecutor.toUpperCase(Locale.ROOT)); }
+                catch (IllegalArgumentException ex) { executor = NpcDefinition.Executor.PLAYER; }
                 definitions.put(normalize(id), new NpcDefinition(normalize(id), name, command, executor));
             }
         }
     }
 
-    public Collection<NpcDefinition> definitions() {
-        return Collections.unmodifiableCollection(definitions.values());
-    }
-
-    public Optional<NpcDefinition> definition(String id) {
-        return Optional.ofNullable(definitions.get(normalize(id)));
-    }
+    public Collection<NpcDefinition> definitions() { return Collections.unmodifiableCollection(definitions.values()); }
+    public Optional<NpcDefinition> definition(String id) { return Optional.ofNullable(definitions.get(normalize(id))); }
 
     public void saveDefinition(NpcDefinition definition) {
         String id = normalize(definition.id());
@@ -101,17 +92,23 @@ public final class NpcService {
         return villager;
     }
 
-    public boolean removeInstance(Villager villager) {
-        String instanceId = villager.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING);
+    public boolean removeInstance(Entity entity) {
+        String instanceId = entity.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING);
         if (instanceId == null) return false;
         placedYaml.set("instances." + instanceId, null);
         save(placedYaml, placedFile);
-        villager.remove();
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity candidate : new ArrayList<>(world.getEntities())) {
+                String candidateInstance = candidate.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING);
+                if (instanceId.equals(candidateInstance)) candidate.remove();
+                if (candidate.getScoreboardTags().contains("miranpc_hologram_" + instanceId) || candidate.getScoreboardTags().contains("miranpc_skin_" + instanceId)) candidate.remove();
+            }
+        }
         return true;
     }
 
     public boolean isNpc(Entity entity) {
-        return entity instanceof Villager && entity.getPersistentDataContainer().has(npcIdKey, PersistentDataType.STRING);
+        return entity != null && entity.getPersistentDataContainer().has(npcIdKey, PersistentDataType.STRING);
     }
 
     public Optional<NpcDefinition> definition(Entity entity) {
@@ -119,15 +116,43 @@ public final class NpcService {
         return id == null ? Optional.empty() : definition(id);
     }
 
+    public Optional<String> instanceId(Entity entity) {
+        if (entity == null) return Optional.empty();
+        return Optional.ofNullable(entity.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING));
+    }
+
+    public void tagExternalEntity(Entity entity, String npcId, String instanceId) {
+        if (entity == null) return;
+        entity.getPersistentDataContainer().set(npcIdKey, PersistentDataType.STRING, normalize(npcId));
+        entity.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
+    }
+
     public boolean execute(Player player, NpcDefinition definition) {
-        String command = stripLeadingSlash(definition.command())
-                .replace("%player%", player.getName())
-                .replace("%username%", player.getName())
-                .replace("%uuid%", player.getUniqueId().toString());
+        NpcExtensionService.Extended extended = plugin.extensions().get(definition.id());
+        List<NpcExtensionService.Action> chain = plugin.extensions().actions(extended);
+        if (!chain.isEmpty()) {
+            boolean any = false;
+            for (NpcExtensionService.Action action : chain) {
+                String command = placeholders(action.command(), player);
+                if (command.isBlank()) continue;
+                any |= action.executor() == NpcDefinition.Executor.CONSOLE
+                        ? Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)
+                        : Bukkit.dispatchCommand(player, command);
+            }
+            return any;
+        }
+        String command = placeholders(definition.command(), player);
         if (command.isBlank()) return false;
         return definition.executor() == NpcDefinition.Executor.CONSOLE
                 ? Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)
                 : Bukkit.dispatchCommand(player, command);
+    }
+
+    private String placeholders(String command, Player player) {
+        return stripLeadingSlash(command)
+                .replace("%player%", player.getName())
+                .replace("%username%", player.getName())
+                .replace("%uuid%", player.getUniqueId().toString());
     }
 
     public void restoreAll() {
@@ -140,11 +165,7 @@ public final class NpcService {
             if (definition == null) continue;
             World world = Bukkit.getWorld(placedYaml.getString(base + ".world", ""));
             if (world == null) continue;
-            double x = placedYaml.getDouble(base + ".x");
-            double y = placedYaml.getDouble(base + ".y");
-            double z = placedYaml.getDouble(base + ".z");
-            float yaw = (float) placedYaml.getDouble(base + ".yaw");
-            Location location = new Location(world, x, y, z, yaw, 0f);
+            Location location = new Location(world, placedYaml.getDouble(base + ".x"), placedYaml.getDouble(base + ".y"), placedYaml.getDouble(base + ".z"), (float) placedYaml.getDouble(base + ".yaw"), 0f);
             Villager entity = findInstance(instanceId).orElse(null);
             if (entity == null || !entity.isValid()) {
                 entity = world.spawn(location, Villager.class, villager -> configureEntity(villager, definition));
@@ -167,11 +188,7 @@ public final class NpcService {
             if (villager == null || !villager.isValid()) continue;
             World world = Bukkit.getWorld(placedYaml.getString(base + ".world", ""));
             if (world == null) continue;
-            Location target = new Location(world,
-                    placedYaml.getDouble(base + ".x"),
-                    placedYaml.getDouble(base + ".y"),
-                    placedYaml.getDouble(base + ".z"),
-                    (float) placedYaml.getDouble(base + ".yaw"), 0f);
+            Location target = new Location(world, placedYaml.getDouble(base + ".x"), placedYaml.getDouble(base + ".y"), placedYaml.getDouble(base + ".z"), (float) placedYaml.getDouble(base + ".yaw"), 0f);
             if (villager.getLocation().distanceSquared(target) > 0.0001) villager.teleport(target);
             villager.setVelocity(villager.getVelocity().zero());
         }
@@ -180,11 +197,9 @@ public final class NpcService {
     private void refreshPlaced(String npcId) {
         NpcDefinition definition = definitions.get(npcId);
         if (definition == null) return;
-        for (World world : Bukkit.getWorlds()) {
-            for (Villager villager : world.getEntitiesByClass(Villager.class)) {
-                String id = villager.getPersistentDataContainer().get(npcIdKey, PersistentDataType.STRING);
-                if (npcId.equals(id)) configureEntity(villager, definition);
-            }
+        for (World world : Bukkit.getWorlds()) for (Villager villager : world.getEntitiesByClass(Villager.class)) {
+            String id = villager.getPersistentDataContainer().get(npcIdKey, PersistentDataType.STRING);
+            if (npcId.equals(id)) configureEntity(villager, definition);
         }
     }
 
@@ -194,18 +209,16 @@ public final class NpcService {
         for (String instanceId : new ArrayList<>(section.getKeys(false))) {
             String base = "instances." + instanceId;
             if (!npcId.equals(normalize(placedYaml.getString(base + ".npc")))) continue;
-            findInstance(instanceId).ifPresent(Entity::remove);
+            findInstance(instanceId).ifPresent(this::removeInstance);
             placedYaml.set(base, null);
         }
         save(placedYaml, placedFile);
     }
 
     private Optional<Villager> findInstance(String instanceId) {
-        for (World world : Bukkit.getWorlds()) {
-            for (Villager villager : world.getEntitiesByClass(Villager.class)) {
-                String id = villager.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING);
-                if (instanceId.equals(id)) return Optional.of(villager);
-            }
+        for (World world : Bukkit.getWorlds()) for (Villager villager : world.getEntitiesByClass(Villager.class)) {
+            String id = villager.getPersistentDataContainer().get(instanceIdKey, PersistentDataType.STRING);
+            if (instanceId.equals(id)) return Optional.of(villager);
         }
         return Optional.empty();
     }
@@ -237,22 +250,11 @@ public final class NpcService {
         save(placedYaml, placedFile);
     }
 
-    private static String normalize(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
-    }
-
-    private static String stripLeadingSlash(String command) {
-        String value = command == null ? "" : command.trim();
-        while (value.startsWith("/")) value = value.substring(1);
-        return value;
-    }
+    private static String normalize(String value) { return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace(' ', '_'); }
+    private static String stripLeadingSlash(String command) { String value = command == null ? "" : command.trim(); while (value.startsWith("/")) value = value.substring(1); return value; }
 
     private void save(YamlConfiguration yaml, File file) {
-        try {
-            if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
-            yaml.save(file);
-        } catch (IOException ex) {
-            plugin.getLogger().severe("Failed to save " + file.getName() + ": " + ex.getMessage());
-        }
+        try { if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs(); yaml.save(file); }
+        catch (IOException ex) { plugin.getLogger().severe("Failed to save " + file.getName() + ": " + ex.getMessage()); }
     }
 }
