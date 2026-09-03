@@ -7,11 +7,13 @@ import com.mira.npc.listener.NpcInteractionListener;
 import com.mira.npc.service.DynamicNpcNameService;
 import com.mira.npc.service.NpcService;
 import com.mira.npc.util.TextUtil;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MiraNPCPlugin extends JavaPlugin {
+    private static final String CHAT_PREFIX = "&5&lMira &8>> &r";
+
     private NpcService npcService;
     private NpcGuiService guiService;
 
@@ -46,7 +48,7 @@ public final class MiraNPCPlugin extends JavaPlugin {
         return getConfig().getString("messages." + key, "&cMissing message: " + key);
     }
 
-    public void msg(Player player, String text) {
-        player.sendMessage(TextUtil.component(text));
+    public void msg(CommandSender sender, String text) {
+        sender.sendMessage(TextUtil.component(CHAT_PREFIX + text));
     }
 }
