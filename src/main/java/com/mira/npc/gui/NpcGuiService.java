@@ -2,6 +2,7 @@ package com.mira.npc.gui;
 
 import com.mira.npc.MiraNPCPlugin;
 import com.mira.npc.model.NpcDefinition;
+import com.mira.npc.service.NpcExtensionService;
 import com.mira.npc.service.NpcService;
 import com.mira.npc.util.TextUtil;
 import org.bukkit.Bukkit;
@@ -15,18 +16,20 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class NpcGuiService {
-    public enum Awaiting { CREATE_ID, NAME, COMMAND }
+    public enum Awaiting { CREATE_ID, NAME, COMMAND, SKIN, LINES }
 
     public record EditState(String id, String name, String command, NpcDefinition.Executor executor) {}
 
     private final MiraNPCPlugin plugin;
     private final NpcService service;
+    private final NpcExtensionService extensions;
     private final Map<UUID, EditState> editing = new ConcurrentHashMap<>();
     private final Map<UUID, Awaiting> awaiting = new ConcurrentHashMap<>();
 
-    public NpcGuiService(MiraNPCPlugin plugin, NpcService service) {
+    public NpcGuiService(MiraNPCPlugin plugin, NpcService service, NpcExtensionService extensions) {
         this.plugin = plugin;
         this.service = service;
+        this.extensions = extensions;
     }
 
     public void openMain(Player player) {
@@ -51,6 +54,7 @@ public final class NpcGuiService {
                     "&7ID: &f" + definition.id(),
                     "&7Function: &f/" + definition.command(),
                     "&7Executor: &f" + definition.executor().name(),
+                    "&7Mode: &f" + extensions.get(definition.id()).mode().name(),
                     "",
                     "&eClick to edit"
             )));
@@ -70,7 +74,11 @@ public final class NpcGuiService {
         inv.setItem(10, button(Material.NAME_TAG, "&eSet Name", List.of("&7Current: " + state.name(), "&eClick then type the name in chat")));
         inv.setItem(12, button(Material.COMMAND_BLOCK, "&eSet Function", List.of("&7Current: &f/" + state.command(), "&eClick then type the command in chat")));
         inv.setItem(14, button(Material.LEVER, "&eExecutor: &f" + state.executor().name(), List.of("&7PLAYER runs it as the clicking player", "&7CONSOLE runs it as console", "&eClick to toggle")));
+        var extended = extensions.get(state.id());
         inv.setItem(16, button(Material.LIME_CONCRETE, "&aSave NPC", List.of("&7Save this definition")));
+        inv.setItem(18, button(Material.ARMOR_STAND, "&eMode: &f" + extended.mode().name(), List.of("&7VILLAGER, HOLOGRAM or PLAYER", "&eClick to cycle")));
+        inv.setItem(20, button(Material.PLAYER_HEAD, "&eSkin", List.of("&7Current: &f" + (extended.skin().isBlank() ? "None" : extended.skin()), "&eClick then type a Minecraft username", "&7Type clear to remove")));
+        inv.setItem(24, button(Material.OAK_SIGN, "&eFloating Text", List.of("&7Lines: &f" + extended.lines().size(), "&eClick then type lines separated by |", "&7Type clear to remove")));
         inv.setItem(22, button(Material.BARRIER, "&cCancel", List.of()));
         player.openInventory(inv);
     }
@@ -108,6 +116,18 @@ public final class NpcGuiService {
                 renderEditor(player, updated);
             }
             case 16 -> save(player);
+            case 18 -> {
+                NpcExtensionService.Mode current = extensions.get(state.id()).mode();
+                NpcExtensionService.Mode next = switch (current) {
+                    case VILLAGER -> NpcExtensionService.Mode.HOLOGRAM;
+                    case HOLOGRAM -> NpcExtensionService.Mode.PLAYER;
+                    case PLAYER -> NpcExtensionService.Mode.VILLAGER;
+                };
+                extensions.mode(state.id(), next);
+                renderEditor(player, state);
+            }
+            case 20 -> beginInput(player, Awaiting.SKIN, "&eType a Minecraft username for the Citizens skin, or &fclear&e.");
+            case 24 -> beginInput(player, Awaiting.LINES, "&eType floating-text lines separated with &f|&e, or type &fclear&e.");
             case 22 -> {
                 editing.remove(player.getUniqueId());
                 openMain(player);
@@ -150,6 +170,19 @@ public final class NpcGuiService {
         EditState state = editing.get(player.getUniqueId());
         if (state == null) {
             openMain(player);
+            return;
+        }
+
+        if (type == Awaiting.SKIN) {
+            extensions.skin(state.id(), value.equalsIgnoreCase("clear") ? "" : value);
+            renderEditor(player, state);
+            return;
+        }
+        if (type == Awaiting.LINES) {
+            List<String> lines = value.equalsIgnoreCase("clear") ? List.of()
+                    : Arrays.stream(value.split("\\|")).map(String::trim).filter(v -> !v.isBlank()).toList();
+            extensions.lines(state.id(), lines);
+            renderEditor(player, state);
             return;
         }
 
