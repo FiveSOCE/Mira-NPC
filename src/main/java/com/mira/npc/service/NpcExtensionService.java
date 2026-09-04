@@ -20,13 +20,15 @@ public final class NpcExtensionService {
 
     private final MiraNPCPlugin plugin;
     private final File file;
-    private final YamlConfiguration yaml;
+    private YamlConfiguration yaml;
 
     public NpcExtensionService(MiraNPCPlugin plugin) {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), "npc-extensions.yml");
         this.yaml = YamlConfiguration.loadConfiguration(file);
     }
+
+    public synchronized void reload() { yaml = YamlConfiguration.loadConfiguration(file); }
 
     public synchronized Extended get(String id) {
         String key = normalize(id);
