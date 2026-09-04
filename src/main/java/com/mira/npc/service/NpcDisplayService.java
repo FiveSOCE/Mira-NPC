@@ -10,6 +10,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.Transformation;
@@ -22,6 +23,7 @@ import java.util.*;
 public final class NpcDisplayService {
     private static final String HOLOGRAM_TAG = "miranpc_hologram_";
     private static final String SKIN_TAG = "miranpc_skin_";
+    private static final String INTERACTION_TAG = "miranpc_interaction_";
     private final MiraNPCPlugin plugin;
     private final NpcService npcs;
     private final NpcExtensionService extensions;
@@ -50,6 +52,8 @@ public final class NpcDisplayService {
                 villager.setInvisible(!visible || hologramOnly || playerMode);
                 villager.setCustomNameVisible(visible && !hologramOnly && !playerMode && extended.lines().isEmpty() && extended.rotationFrames().isEmpty());
                 updateHolograms(villager, definition, extended, instance, visible);
+                if (hologramOnly && visible) updateInteraction(villager, definition, instance);
+                else removeInteraction(world, instance);
                 if (playerMode && visible) updateCitizensSkin(villager, definition, extended, instance);
                 else removeSkinEntity(world, instance);
             }
@@ -108,6 +112,7 @@ public final class NpcDisplayService {
         if (existing != null && existing.isValid()) {
             existing.teleport(anchor.getLocation());
             npcs.tagExternalEntity(existing, definition.id(), instance);
+            applyCitizensSkin(existing, extended.skin());
             return;
         }
         try {
@@ -134,6 +139,52 @@ public final class NpcDisplayService {
         }
     }
 
+    private void updateInteraction(Villager anchor, NpcDefinition definition, String instance) {
+        Interaction interaction = interactionEntity(anchor.getWorld(), instance);
+        if (interaction == null || !interaction.isValid()) {
+            interaction = anchor.getWorld().spawn(anchor.getLocation().clone().add(0, 0.9D, 0), Interaction.class);
+            interaction.addScoreboardTag(INTERACTION_TAG + instance);
+            interaction.setPersistent(true);
+            interaction.setResponsive(true);
+            interaction.setInteractionWidth((float) Math.max(0.2D, plugin.getConfig().getDouble("settings.hologram-hitbox-width", 1.0D)));
+            interaction.setInteractionHeight((float) Math.max(0.2D, plugin.getConfig().getDouble("settings.hologram-hitbox-height", 2.0D)));
+            npcs.tagExternalEntity(interaction, definition.id(), instance);
+        } else {
+            interaction.teleport(anchor.getLocation().clone().add(0, 0.9D, 0));
+            npcs.tagExternalEntity(interaction, definition.id(), instance);
+        }
+    }
+
+    private Interaction interactionEntity(World world, String instance) {
+        String tag = INTERACTION_TAG + instance;
+        for (Interaction interaction : world.getEntitiesByClass(Interaction.class)) {
+            if (interaction.getScoreboardTags().contains(tag)) return interaction;
+        }
+        return null;
+    }
+
+    private void removeInteraction(World world, String instance) {
+        Interaction interaction = interactionEntity(world, instance);
+        if (interaction != null) interaction.remove();
+    }
+
+    private void applyCitizensSkin(Entity entity, String skin) {
+        if (entity == null || skin == null || skin.isBlank()) return;
+        try {
+            Class<?> citizens = Class.forName("net.citizensnpcs.api.CitizensAPI");
+            Object registry = citizens.getMethod("getNPCRegistry").invoke(null);
+            Class<?> registryClass = Class.forName("net.citizensnpcs.api.npc.NPCRegistry");
+            Object npc = registryClass.getMethod("getNPC", Entity.class).invoke(registry, entity);
+            if (npc == null) return;
+            Class<?> npcClass = Class.forName("net.citizensnpcs.api.npc.NPC");
+            Class<?> skinTrait = Class.forName("net.citizensnpcs.trait.SkinTrait");
+            Object trait = npcClass.getMethod("getOrAddTrait", Class.class).invoke(npc, skinTrait);
+            try { skinTrait.getMethod("setSkinName", String.class, boolean.class).invoke(trait, skin, true); }
+            catch (NoSuchMethodException ex) { skinTrait.getMethod("setSkinName", String.class).invoke(trait, skin); }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private Entity skinEntity(World world, String instance) {
         String tag = SKIN_TAG + instance;
         for (Entity entity : world.getEntities()) if (entity.getScoreboardTags().contains(tag)) return entity;
@@ -141,7 +192,20 @@ public final class NpcDisplayService {
     }
     private void removeSkinEntity(World world, String instance) {
         Entity entity = skinEntity(world, instance);
-        if (entity != null) entity.remove();
+        if (entity == null) return;
+        try {
+            Class<?> citizens = Class.forName("net.citizensnpcs.api.CitizensAPI");
+            Object registry = citizens.getMethod("getNPCRegistry").invoke(null);
+            Class<?> registryClass = Class.forName("net.citizensnpcs.api.npc.NPCRegistry");
+            Object npc = registryClass.getMethod("getNPC", Entity.class).invoke(registry, entity);
+            if (npc != null) {
+                Class<?> npcClass = Class.forName("net.citizensnpcs.api.npc.NPC");
+                npcClass.getMethod("destroy").invoke(npc);
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        entity.remove();
     }
 
     private void cleanupOrphans() {
@@ -151,7 +215,8 @@ public final class NpcDisplayService {
             for (Entity entity : new ArrayList<>(world.getEntities())) {
                 for (String tag : entity.getScoreboardTags()) {
                     if (tag.startsWith(HOLOGRAM_TAG) && !live.contains(tag.substring(HOLOGRAM_TAG.length()))) entity.remove();
-                    if (tag.startsWith(SKIN_TAG) && !live.contains(tag.substring(SKIN_TAG.length()))) entity.remove();
+                    if (tag.startsWith(SKIN_TAG) && !live.contains(tag.substring(SKIN_TAG.length()))) removeSkinEntity(world, tag.substring(SKIN_TAG.length()));
+                    if (tag.startsWith(INTERACTION_TAG) && !live.contains(tag.substring(INTERACTION_TAG.length()))) entity.remove();
                 }
             }
         }
