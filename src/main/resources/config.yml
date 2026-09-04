@@ -2,6 +2,10 @@ settings:
   placement-range: 8
   enforce-position-ticks: 20
   dynamic-name-refresh-ticks: 100
+  display-refresh-ticks: 40
+  hologram-line-spacing: 0.28
+  hologram-hitbox-width: 1.0
+  hologram-hitbox-height: 2.0
   default-executor: PLAYER
 
 messages:
