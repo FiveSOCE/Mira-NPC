@@ -149,10 +149,19 @@ public final class NpcService {
     }
 
     private String placeholders(String command, Player player) {
-        return stripLeadingSlash(command)
+        String resolved = stripLeadingSlash(command)
                 .replace("%player%", player.getName())
                 .replace("%username%", player.getName())
                 .replace("%uuid%", player.getUniqueId().toString());
+        if (!resolved.contains("%") || !Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return resolved;
+        try {
+            Class<?> papi = Class.forName("me.clip.placeholderapi.PlaceholderAPI");
+            Object value = papi.getMethod("setPlaceholders", org.bukkit.OfflinePlayer.class, String.class)
+                    .invoke(null, player, resolved);
+            return value instanceof String text ? stripLeadingSlash(text) : resolved;
+        } catch (Throwable ignored) {
+            return resolved;
+        }
     }
 
     public void restoreAll() {
