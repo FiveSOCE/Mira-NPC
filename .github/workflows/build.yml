@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,6 +31,19 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: MiraNPC
-          path: build/libs/MiraNPC-*.jar
+          name: MiraNPC-0.1.2
+          path: build/libs/MiraNPC-0.1.2.jar
           if-no-files-found: error
+
+      - name: Publish v0.1.2 release if missing
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view v0.1.2 >/dev/null 2>&1; then
+            gh release create v0.1.2 \
+              build/libs/MiraNPC-0.1.2.jar \
+              --target "${{ github.sha }}" \
+              --title "MiraNPC v0.1.2" \
+              --notes "Wires the advanced MiraNPC runtime: multiline TextDisplay holograms with Interaction hitboxes, optional Citizens player NPCs/skins, rotating frames, timed states, command chains, player-context PlaceholderAPI commands and editor controls."
+          fi
