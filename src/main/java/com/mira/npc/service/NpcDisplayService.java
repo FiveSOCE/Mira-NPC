@@ -125,7 +125,6 @@ public final class NpcDisplayService {
         mannequin.setCollidable(false);
         mannequin.setSilent(true);
         mannequin.setPersistent(true);
-        mannequin.setRemoveWhenFarAway(false);
         mannequin.setDescription(null);
         mannequin.customName(TextUtil.component(resolve(definition.displayName())));
         mannequin.setCustomNameVisible(false);
