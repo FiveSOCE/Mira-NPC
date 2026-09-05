@@ -1,9 +1,9 @@
 name: MiraNPC
-version: 0.1.2
+version: 0.1.3
 main: com.mira.npc.MiraNPCPlugin
 api-version: '1.21'
 authors: [FiveS]
-softdepend: [PlaceholderAPI, MiraFactions, Citizens]
+softdepend: [PlaceholderAPI, MiraFactions]
 commands:
   mnpc:
     description: MiraNPC editor and placement commands
