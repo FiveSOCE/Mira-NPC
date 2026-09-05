@@ -52,7 +52,7 @@ public final class MiraNPCPlugin extends JavaPlugin {
         long displayTicks = Math.max(10L, getConfig().getLong("settings.display-refresh-ticks", 40L));
         getServer().getScheduler().runTaskTimer(this, displayService::refresh, displayTicks, displayTicks);
 
-        getLogger().info("MiraNPC v" + getPluginMeta().getVersion() + " enabled with villager, hologram and optional Citizens player modes.");
+        getLogger().info("MiraNPC v" + getPluginMeta().getVersion() + " enabled with villager, hologram and native Paper mannequin PLAYER modes.");
     }
 
     public NpcExtensionService extensions() { return extensionService; }
