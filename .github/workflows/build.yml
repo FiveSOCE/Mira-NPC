@@ -31,19 +31,19 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: MiraNPC-0.1.2
-          path: build/libs/MiraNPC-0.1.2.jar
+          name: MiraNPC-0.1.3
+          path: build/libs/MiraNPC-0.1.3.jar
           if-no-files-found: error
 
-      - name: Publish v0.1.2 release if missing
+      - name: Publish v0.1.3 release if missing
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v0.1.2 >/dev/null 2>&1; then
-            gh release create v0.1.2 \
-              build/libs/MiraNPC-0.1.2.jar \
+          if ! gh release view v0.1.3 >/dev/null 2>&1; then
+            gh release create v0.1.3 \
+              build/libs/MiraNPC-0.1.3.jar \
               --target "${{ github.sha }}" \
-              --title "MiraNPC v0.1.2" \
-              --notes "Wires the advanced MiraNPC runtime: multiline TextDisplay holograms with Interaction hitboxes, optional Citizens player NPCs/skins, rotating frames, timed states, command chains, player-context PlaceholderAPI commands and editor controls."
+              --title "MiraNPC v0.1.3" \
+              --notes "Removes Citizens entirely and replaces PLAYER mode with Minecraft/Paper 1.21.11 native Mannequin player avatars, including asynchronous Minecraft-profile skin resolution while preserving MiraNPC holograms, interactions, actions, timed states and persistence."
           fi
