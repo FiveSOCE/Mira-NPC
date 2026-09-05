@@ -11,8 +11,10 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
+import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Villager;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -29,6 +31,8 @@ public final class NpcDisplayService {
     private final NpcExtensionService extensions;
     private Method placeholderMethod;
     private boolean placeholderLookupAttempted;
+    private final Map<String, ResolvableProfile> skinProfiles = new HashMap<>();
+    private final Set<String> skinLookups = new HashSet<>();
 
     public NpcDisplayService(MiraNPCPlugin plugin, NpcService npcs, NpcExtensionService extensions) {
         this.plugin = plugin;
@@ -54,7 +58,7 @@ public final class NpcDisplayService {
                 updateHolograms(villager, definition, extended, instance, visible);
                 if (hologramOnly && visible) updateInteraction(villager, definition, instance);
                 else removeInteraction(world, instance);
-                if (playerMode && visible) updateCitizensSkin(villager, definition, extended, instance);
+                if (playerMode && visible) updatePlayerAvatar(villager, definition, extended, instance);
                 else removeSkinEntity(world, instance);
             }
         }
@@ -102,40 +106,72 @@ public final class NpcDisplayService {
 
     private void removeHolograms(World world, String instance) { for (TextDisplay display : holograms(world, instance)) display.remove(); }
 
-    private void updateCitizensSkin(Villager anchor, NpcDefinition definition, NpcExtensionService.Extended extended, String instance) {
-        if (!Bukkit.getPluginManager().isPluginEnabled("Citizens")) {
-            removeSkinEntity(anchor.getWorld(), instance);
-            if (!extended.skin().isBlank()) plugin.getLogger().fine("NPC " + definition.id() + " requests PLAYER mode but Citizens is not installed.");
-            return;
-        }
+    private void updatePlayerAvatar(Villager anchor, NpcDefinition definition,
+                                    NpcExtensionService.Extended extended, String instance) {
         Entity existing = skinEntity(anchor.getWorld(), instance);
-        if (existing != null && existing.isValid()) {
-            existing.teleport(anchor.getLocation());
-            npcs.tagExternalEntity(existing, definition.id(), instance);
-            applyCitizensSkin(existing, extended.skin());
+        Mannequin mannequin;
+
+        if (existing instanceof Mannequin found && found.isValid()) {
+            mannequin = found;
+            mannequin.teleport(anchor.getLocation());
+        } else {
+            if (existing != null) existing.remove();
+            mannequin = anchor.getWorld().spawn(anchor.getLocation(), Mannequin.class);
+            mannequin.addScoreboardTag(SKIN_TAG + instance);
+        }
+
+        mannequin.setImmovable(true);
+        mannequin.setInvulnerable(true);
+        mannequin.setCollidable(false);
+        mannequin.setSilent(true);
+        mannequin.setPersistent(true);
+        mannequin.setRemoveWhenFarAway(false);
+        mannequin.setDescription(null);
+        mannequin.customName(TextUtil.component(resolve(definition.displayName())));
+        mannequin.setCustomNameVisible(false);
+        npcs.tagExternalEntity(mannequin, definition.id(), instance);
+        applyNativeSkin(mannequin, extended.skin());
+    }
+
+    private void applyNativeSkin(Mannequin mannequin, String skin) {
+        if (mannequin == null || !mannequin.isValid()) return;
+        if (skin == null || skin.isBlank()) {
+            mannequin.setProfile(Mannequin.defaultProfile());
             return;
         }
+
+        String clean = skin.trim();
+        if (!clean.matches("[A-Za-z0-9_]{1,16}")) {
+            plugin.getLogger().warning("Skipping invalid mannequin skin username: " + clean);
+            mannequin.setProfile(Mannequin.defaultProfile());
+            return;
+        }
+
+        String key = clean.toLowerCase(Locale.ROOT);
+        ResolvableProfile cached = skinProfiles.get(key);
+        if (cached != null) {
+            mannequin.setProfile(cached);
+            return;
+        }
+
+        if (!skinLookups.add(key)) return;
+
         try {
-            Class<?> citizens = Class.forName("net.citizensnpcs.api.CitizensAPI");
-            Object registry = citizens.getMethod("getNPCRegistry").invoke(null);
-            Class<?> registryClass = Class.forName("net.citizensnpcs.api.npc.NPCRegistry");
-            Object npc = registryClass.getMethod("createNPC", org.bukkit.entity.EntityType.class, String.class)
-                    .invoke(registry, org.bukkit.entity.EntityType.PLAYER, stripColors(resolve(definition.displayName())));
-            Class<?> npcClass = Class.forName("net.citizensnpcs.api.npc.NPC");
-            npcClass.getMethod("spawn", Location.class).invoke(npc, anchor.getLocation());
-            if (!extended.skin().isBlank()) {
-                Class<?> skinTrait = Class.forName("net.citizensnpcs.trait.SkinTrait");
-                Object trait = npcClass.getMethod("getOrAddTrait", Class.class).invoke(npc, skinTrait);
-                try { skinTrait.getMethod("setSkinName", String.class, boolean.class).invoke(trait, extended.skin(), true); }
-                catch (NoSuchMethodException ex) { skinTrait.getMethod("setSkinName", String.class).invoke(trait, extended.skin()); }
-            }
-            Object entity = npcClass.getMethod("getEntity").invoke(npc);
-            if (entity instanceof Entity bukkitEntity) {
-                bukkitEntity.addScoreboardTag(SKIN_TAG + instance);
-                npcs.tagExternalEntity(bukkitEntity, definition.id(), instance);
-            }
-        } catch (Throwable ex) {
-            plugin.getLogger().warning("Could not create Citizens player NPC for " + definition.id() + ": " + ex.getMessage());
+            Bukkit.createProfile(clean).update().whenComplete((updated, error) ->
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        skinLookups.remove(key);
+                        if (error != null || updated == null) {
+                            plugin.getLogger().warning("Could not resolve mannequin skin for " + clean
+                                    + (error == null ? "" : ": " + error.getMessage()));
+                            return;
+                        }
+                        ResolvableProfile resolved = ResolvableProfile.resolvableProfile(updated);
+                        skinProfiles.put(key, resolved);
+                        if (mannequin.isValid()) mannequin.setProfile(resolved);
+                    }));
+        } catch (RuntimeException error) {
+            skinLookups.remove(key);
+            plugin.getLogger().warning("Could not begin mannequin skin lookup for " + clean + ": " + error.getMessage());
         }
     }
 
@@ -168,23 +204,6 @@ public final class NpcDisplayService {
         if (interaction != null) interaction.remove();
     }
 
-    private void applyCitizensSkin(Entity entity, String skin) {
-        if (entity == null || skin == null || skin.isBlank()) return;
-        try {
-            Class<?> citizens = Class.forName("net.citizensnpcs.api.CitizensAPI");
-            Object registry = citizens.getMethod("getNPCRegistry").invoke(null);
-            Class<?> registryClass = Class.forName("net.citizensnpcs.api.npc.NPCRegistry");
-            Object npc = registryClass.getMethod("getNPC", Entity.class).invoke(registry, entity);
-            if (npc == null) return;
-            Class<?> npcClass = Class.forName("net.citizensnpcs.api.npc.NPC");
-            Class<?> skinTrait = Class.forName("net.citizensnpcs.trait.SkinTrait");
-            Object trait = npcClass.getMethod("getOrAddTrait", Class.class).invoke(npc, skinTrait);
-            try { skinTrait.getMethod("setSkinName", String.class, boolean.class).invoke(trait, skin, true); }
-            catch (NoSuchMethodException ex) { skinTrait.getMethod("setSkinName", String.class).invoke(trait, skin); }
-        } catch (Throwable ignored) {
-        }
-    }
-
     private Entity skinEntity(World world, String instance) {
         String tag = SKIN_TAG + instance;
         for (Entity entity : world.getEntities()) if (entity.getScoreboardTags().contains(tag)) return entity;
@@ -192,20 +211,7 @@ public final class NpcDisplayService {
     }
     private void removeSkinEntity(World world, String instance) {
         Entity entity = skinEntity(world, instance);
-        if (entity == null) return;
-        try {
-            Class<?> citizens = Class.forName("net.citizensnpcs.api.CitizensAPI");
-            Object registry = citizens.getMethod("getNPCRegistry").invoke(null);
-            Class<?> registryClass = Class.forName("net.citizensnpcs.api.npc.NPCRegistry");
-            Object npc = registryClass.getMethod("getNPC", Entity.class).invoke(registry, entity);
-            if (npc != null) {
-                Class<?> npcClass = Class.forName("net.citizensnpcs.api.npc.NPC");
-                npcClass.getMethod("destroy").invoke(npc);
-                return;
-            }
-        } catch (Throwable ignored) {
-        }
-        entity.remove();
+        if (entity != null) entity.remove();
     }
 
     private void cleanupOrphans() {
