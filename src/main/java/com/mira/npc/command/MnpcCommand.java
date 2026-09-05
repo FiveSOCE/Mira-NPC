@@ -119,9 +119,6 @@ public final class MnpcCommand implements CommandExecutor, TabCompleter {
             extensions.mode(args[1], mode);
             displays.refresh();
             plugin.msg(player, "&aNPC mode set to &f" + mode.name() + "&a.");
-            if (mode == NpcExtensionService.Mode.PLAYER && !plugin.getServer().getPluginManager().isPluginEnabled("Citizens")) {
-                plugin.msg(player, "&eCitizens is not installed, so PLAYER mode will remain unavailable until Citizens is present.");
-            }
         } catch (IllegalArgumentException ex) {
             plugin.msg(player, "&cMode must be VILLAGER, HOLOGRAM or PLAYER.");
         }
@@ -248,7 +245,7 @@ public final class MnpcCommand implements CommandExecutor, TabCompleter {
                 + " &7skin &f" + (ext.skin().isBlank() ? "None" : ext.skin()));
         plugin.msg(player, "&7Lines: &f" + ext.lines().size() + " &7frames: &f" + ext.rotationFrames().size()
                 + " &7actions: &f" + ext.actions().size() + " &7states: &f" + ext.timedStates().size());
-        plugin.msg(player, "&7Citizens player backend: " + (plugin.getServer().getPluginManager().isPluginEnabled("Citizens") ? "&aAVAILABLE" : "&cUNAVAILABLE"));
+        plugin.msg(player, "&7PLAYER backend: &aNATIVE PAPER MANNEQUIN");
     }
 
     private void delete(Player player, String[] args) {
