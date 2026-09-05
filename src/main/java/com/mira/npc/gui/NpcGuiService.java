@@ -126,7 +126,7 @@ public final class NpcGuiService {
                 extensions.mode(state.id(), next);
                 renderEditor(player, state);
             }
-            case 20 -> beginInput(player, Awaiting.SKIN, "&eType a Minecraft username for the Citizens skin, or &fclear&e.");
+            case 20 -> beginInput(player, Awaiting.SKIN, "&eType a Minecraft username for the native PLAYER skin, or &fclear&e.");
             case 24 -> beginInput(player, Awaiting.LINES, "&eType floating-text lines separated with &f|&e, or type &fclear&e.");
             case 22 -> {
                 editing.remove(player.getUniqueId());
