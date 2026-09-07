@@ -4,7 +4,7 @@ MiraNPC provides persistent VILLAGER, HOLOGRAM and native Paper Mannequin-backed
 
 ## Download
 
-[**Download MiraNPC v0.1.3**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.3/MiraNPC-0.1.3.jar)
+[**Download MiraNPC v0.1.4**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.4/MiraNPC-0.1.4.jar)
 
 [View All Releases](https://github.com/FiveSOCE/Mira-NPC/releases)
 
@@ -22,6 +22,16 @@ Administrators create NPC definitions through the `/mnpc` editor GUI. A definiti
 VILLAGER mode uses the existing fixed native Villager body. HOLOGRAM mode hides the internal anchor and uses modern TextDisplay lines plus a dedicated Interaction hitbox, so players can click floating text without a visible mob body. PLAYER mode uses Minecraft/Paper's native Mannequin entity to create a player-avatar body with a configured Minecraft skin. No Citizens, ProtocolLib, PacketEvents or NMS dependency is required.
 
 Floating text supports multiple PlaceholderAPI-resolved lines and configurable rotation frames. Timed states can change visibility, text and command chains for time windows that cross midnight safely. Command chains preserve PLAYER or CONSOLE execution per action. Function text supports `%player%`, `%username%`, `%uuid%` and player-context PlaceholderAPI values.
+
+
+## Built-in leaderboard NPC functions (0.1.4)
+
+Two special NPC function values now open player-facing leaderboard GUIs directly instead of dispatching a plain command:
+
+- **`ftop`** (also accepts `f top`) opens a top-10 faction GUI. Entries show total value, land assets, bank, members, claims and power in hover lore. Clicking a faction closes the GUI and runs `/f info <faction>`.
+- **`baltop`** (also accepts `bal top`) opens a top-10 economy GUI using the ranked players' heads. Hover lore shows the player's name and current Vault balance.
+
+These GUIs do not require `miranpc.admin`; that permission remains only for editing/placing NPCs.
 
 ## Commands
 
