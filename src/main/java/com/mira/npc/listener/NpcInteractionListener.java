@@ -2,6 +2,7 @@ package com.mira.npc.listener;
 
 import com.mira.npc.MiraNPCPlugin;
 import com.mira.npc.model.NpcDefinition;
+import com.mira.npc.gui.LeaderboardGuiService;
 import com.mira.npc.service.NpcService;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -16,10 +17,12 @@ import org.bukkit.inventory.EquipmentSlot;
 public final class NpcInteractionListener implements Listener {
     private final MiraNPCPlugin plugin;
     private final NpcService service;
+    private final LeaderboardGuiService leaderboards;
 
-    public NpcInteractionListener(MiraNPCPlugin plugin, NpcService service) {
+    public NpcInteractionListener(MiraNPCPlugin plugin, NpcService service, LeaderboardGuiService leaderboards) {
         this.plugin = plugin;
         this.service = service;
+        this.leaderboards = leaderboards;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -46,6 +49,15 @@ public final class NpcInteractionListener implements Listener {
     private void run(Player player, Entity entity) {
         NpcDefinition definition = service.definition(entity).orElse(null);
         if (definition == null) return;
+        String function = definition.command() == null ? "" : definition.command().trim().toLowerCase(java.util.Locale.ROOT);
+        if (function.equals("ftop") || function.equals("f top")) {
+            leaderboards.open(player, LeaderboardGuiService.Type.FTOP);
+            return;
+        }
+        if (function.equals("baltop") || function.equals("bal top")) {
+            leaderboards.open(player, LeaderboardGuiService.Type.BALTOP);
+            return;
+        }
         if (!service.execute(player, definition)) plugin.msg(player, plugin.message("command-failed"));
     }
 }
