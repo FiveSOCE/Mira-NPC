@@ -1,5 +1,5 @@
 name: MiraNPC
-version: 0.1.3
+version: 0.1.4
 main: com.mira.npc.MiraNPCPlugin
 api-version: '1.21'
 authors: [FiveS]
