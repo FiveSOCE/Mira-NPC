@@ -2,6 +2,7 @@ package com.mira.npc;
 
 import com.mira.npc.command.MnpcCommand;
 import com.mira.npc.gui.NpcGuiService;
+import com.mira.npc.gui.LeaderboardGuiService;
 import com.mira.npc.listener.NpcGuiListener;
 import com.mira.npc.listener.NpcInteractionListener;
 import com.mira.npc.service.DynamicNpcNameService;
@@ -20,6 +21,7 @@ public final class MiraNPCPlugin extends JavaPlugin {
     private NpcExtensionService extensionService;
     private NpcDisplayService displayService;
     private NpcGuiService guiService;
+    private LeaderboardGuiService leaderboardGuiService;
 
     @Override
     public void onEnable() {
@@ -29,10 +31,11 @@ public final class MiraNPCPlugin extends JavaPlugin {
         extensionService = new NpcExtensionService(this);
         displayService = new NpcDisplayService(this, npcService, extensionService);
         guiService = new NpcGuiService(this, npcService, extensionService);
+        leaderboardGuiService = new LeaderboardGuiService(this);
         DynamicNpcNameService dynamicNames = new DynamicNpcNameService(this, npcService);
 
-        getServer().getPluginManager().registerEvents(new NpcGuiListener(this, guiService), this);
-        getServer().getPluginManager().registerEvents(new NpcInteractionListener(this, npcService), this);
+        getServer().getPluginManager().registerEvents(new NpcGuiListener(this, guiService, leaderboardGuiService), this);
+        getServer().getPluginManager().registerEvents(new NpcInteractionListener(this, npcService, leaderboardGuiService), this);
 
         MnpcCommand command = new MnpcCommand(this, npcService, guiService, extensionService, displayService);
         PluginCommand mnpc = getCommand("mnpc");
