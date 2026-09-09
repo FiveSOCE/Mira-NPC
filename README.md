@@ -1,12 +1,14 @@
 # MiraNPC
 
-MiraNPC provides persistent VILLAGER, HOLOGRAM and native Paper Mannequin-backed PLAYER NPCs for the Mira Paper server suite. NPCs can act as interactive command triggers, live PlaceholderAPI displays, rotating leaderboards and timed-state displays.
-
 ## Download
 
-[**Download MiraNPC v0.1.4**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.5/MiraNPC-0.1.5.jar)
+**Latest compatibility release: v0.1.5**
 
-[View All Releases](https://github.com/FiveSOCE/Mira-NPC/releases)
+[**Download MiraNPC-0.1.5.jar**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.5/MiraNPC-0.1.5.jar)
+
+[View all releases](https://github.com/FiveSOCE/Mira-NPC/releases)
+
+MiraNPC provides persistent VILLAGER, HOLOGRAM and native Paper Mannequin-backed PLAYER NPCs for the Mira Paper server suite. NPCs can act as interactive command triggers, live PlaceholderAPI displays, rotating leaderboards and timed-state displays.
 
 ## Requirements / Dependencies
 
