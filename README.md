@@ -4,7 +4,7 @@ MiraNPC provides persistent VILLAGER, HOLOGRAM and native Paper Mannequin-backed
 
 ## Download
 
-[**Download MiraNPC v0.1.4**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.4/MiraNPC-0.1.4.jar)
+[**Download MiraNPC v0.1.4**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.5/MiraNPC-0.1.5.jar)
 
 [View All Releases](https://github.com/FiveSOCE/Mira-NPC/releases)
 
