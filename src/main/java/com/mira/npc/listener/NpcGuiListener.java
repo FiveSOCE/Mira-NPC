@@ -2,7 +2,6 @@ package com.mira.npc.listener;
 
 import com.mira.npc.MiraNPCPlugin;
 import com.mira.npc.gui.NpcGuiService;
-import com.mira.npc.gui.LeaderboardGuiService;
 import com.mira.npc.gui.NpcHolder;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -15,23 +14,15 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 public final class NpcGuiListener implements Listener {
     private final MiraNPCPlugin plugin;
     private final NpcGuiService gui;
-    private final LeaderboardGuiService leaderboards;
 
-    public NpcGuiListener(MiraNPCPlugin plugin, NpcGuiService gui, LeaderboardGuiService leaderboards) {
+    public NpcGuiListener(MiraNPCPlugin plugin, NpcGuiService gui) {
         this.plugin = plugin;
         this.gui = gui;
-        this.leaderboards = leaderboards;
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (event.getView().getTopInventory().getHolder() instanceof LeaderboardGuiService.BoardHolder board) {
-            event.setCancelled(true);
-            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-            leaderboards.click(player, board, event.getCurrentItem());
-            return;
-        }
         if (!(event.getView().getTopInventory().getHolder() instanceof NpcHolder holder)) return;
         event.setCancelled(true);
         if (!player.hasPermission("miranpc.admin")) {

@@ -2,27 +2,28 @@ package com.mira.npc.listener;
 
 import com.mira.npc.MiraNPCPlugin;
 import com.mira.npc.model.NpcDefinition;
-import com.mira.npc.gui.LeaderboardGuiService;
 import com.mira.npc.service.NpcService;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.*;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.entity.EntityCombustEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityTeleportEvent;
+import org.bukkit.event.entity.EntityTransformEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 public final class NpcInteractionListener implements Listener {
     private final MiraNPCPlugin plugin;
     private final NpcService service;
-    private final LeaderboardGuiService leaderboards;
 
-    public NpcInteractionListener(MiraNPCPlugin plugin, NpcService service, LeaderboardGuiService leaderboards) {
+    public NpcInteractionListener(MiraNPCPlugin plugin, NpcService service) {
         this.plugin = plugin;
         this.service = service;
-        this.leaderboards = leaderboards;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -30,34 +31,48 @@ public final class NpcInteractionListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
         if (!service.isNpc(event.getRightClicked())) return;
         event.setCancelled(true);
-        run(event.getPlayer(), event.getRightClicked());
+        run(event.getPlayer(), (Villager) event.getRightClicked());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDamage(EntityDamageEvent event) {
         if (!service.isNpc(event.getEntity())) return;
         event.setCancelled(true);
-        if (event instanceof EntityDamageByEntityEvent byEntity && byEntity.getDamager() instanceof Player player) run(player, event.getEntity());
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent byEntity && byEntity.getDamager() instanceof Player player) {
+            run(player, (Villager) event.getEntity());
+        }
     }
 
-    @EventHandler(ignoreCancelled = false) public void onCombust(EntityCombustEvent event) { if (service.isNpc(event.getEntity())) event.setCancelled(true); }
-    @EventHandler(ignoreCancelled = false) public void onTarget(EntityTargetEvent event) { if (service.isNpc(event.getEntity())) event.setCancelled(true); }
-    @EventHandler(ignoreCancelled = false) public void onTeleport(EntityTeleportEvent event) { if (service.isNpc(event.getEntity())) event.setCancelled(true); }
-    @EventHandler(ignoreCancelled = false) public void onTransform(EntityTransformEvent event) { if (service.isNpc(event.getEntity())) event.setCancelled(true); }
-    @EventHandler(ignoreCancelled = false) public void onLeash(PlayerLeashEntityEvent event) { if (service.isNpc(event.getEntity())) event.setCancelled(true); }
+    @EventHandler(ignoreCancelled = false)
+    public void onCombust(EntityCombustEvent event) {
+        if (service.isNpc(event.getEntity())) event.setCancelled(true);
+    }
 
-    private void run(Player player, Entity entity) {
-        NpcDefinition definition = service.definition(entity).orElse(null);
+    @EventHandler(ignoreCancelled = false)
+    public void onTarget(EntityTargetEvent event) {
+        if (service.isNpc(event.getEntity())) event.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = false)
+    public void onTeleport(EntityTeleportEvent event) {
+        if (service.isNpc(event.getEntity())) event.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = false)
+    public void onTransform(EntityTransformEvent event) {
+        if (service.isNpc(event.getEntity())) event.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = false)
+    public void onLeash(PlayerLeashEntityEvent event) {
+        if (service.isNpc(event.getEntity())) event.setCancelled(true);
+    }
+
+    private void run(Player player, Villager villager) {
+        NpcDefinition definition = service.definition(villager).orElse(null);
         if (definition == null) return;
-        String function = definition.command() == null ? "" : definition.command().trim().toLowerCase(java.util.Locale.ROOT);
-        if (function.equals("ftop") || function.equals("f top")) {
-            leaderboards.open(player, LeaderboardGuiService.Type.FTOP);
-            return;
+        if (!service.execute(player, definition)) {
+            plugin.msg(player, plugin.message("command-failed"));
         }
-        if (function.equals("baltop") || function.equals("bal top")) {
-            leaderboards.open(player, LeaderboardGuiService.Type.BALTOP);
-            return;
-        }
-        if (!service.execute(player, definition)) plugin.msg(player, plugin.message("command-failed"));
     }
 }
