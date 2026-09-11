@@ -14,6 +14,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Villager;
 import org.bukkit.util.RayTraceResult;
 
 import java.util.ArrayList;
@@ -91,7 +92,12 @@ public final class MnpcCommand implements CommandExecutor, TabCompleter {
             plugin.msg(player, plugin.message("no-target-block"));
             return;
         }
-        service.place(id, block.getLocation(), player.getLocation().getYaw() + 180f);
+        Villager placed = service.place(id, block.getLocation(), player.getLocation().getYaw() + 180f);
+        if (placed == null) {
+            plugin.msg(player, "&cThat NPC could not be placed there. Look at a block with two blocks of free space above it.");
+            return;
+        }
+        displays.refresh();
         plugin.msg(player, plugin.message("placed").replace("%npc%", id));
     }
 
