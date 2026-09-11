@@ -1,12 +1,13 @@
 name: MiraNPC
-version: 0.1.6
+version: 0.1.7
 main: com.mira.npc.MiraNPCPlugin
 api-version: '1.21'
 authors: [FiveS]
+description: Stable villager-only NPC editor, placement and interaction backend.
 softdepend: [PlaceholderAPI, MiraFactions]
 commands:
   mnpc:
-    description: MiraNPC editor and placement commands
+    description: MiraNPC editor and villager placement commands
     usage: /mnpc
     permission: miranpc.admin
 permissions:
