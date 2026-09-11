@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -81,15 +82,43 @@ public final class NpcService {
 
     public Villager place(String npcId, Location blockTop, float yaw) {
         NpcDefinition definition = definitions.get(normalize(npcId));
-        if (definition == null) return null;
-        Location spawn = blockTop.clone().add(0.5, 1.0, 0.5);
-        spawn.setYaw(yaw);
-        spawn.setPitch(0f);
-        Villager villager = spawn.getWorld().spawn(spawn, Villager.class, entity -> configureEntity(entity, definition));
-        String instanceId = UUID.randomUUID().toString();
-        villager.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
-        persistInstance(instanceId, definition.id(), villager.getUniqueId(), spawn);
-        return villager;
+        if (definition == null || blockTop == null || blockTop.getWorld() == null) return null;
+
+        Location spawn = findSafePlacement(blockTop, yaw);
+        if (spawn == null) {
+            plugin.getLogger().warning("Could not place NPC '" + definition.id() + "': no safe two-block space above target.");
+            return null;
+        }
+
+        try {
+            Villager villager = spawn.getWorld().spawn(spawn, Villager.class,
+                    entity -> configureEntity(entity, definition));
+            String instanceId = UUID.randomUUID().toString();
+            villager.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
+            persistInstance(instanceId, definition.id(), villager.getUniqueId(), spawn);
+            return villager;
+        } catch (RuntimeException ex) {
+            plugin.getLogger().severe("Could not place NPC '" + definition.id() + "': " + ex.getMessage());
+            return null;
+        }
+    }
+
+    private Location findSafePlacement(Location targetBlock, float yaw) {
+        World world = targetBlock.getWorld();
+        if (world == null) return null;
+        int x = targetBlock.getBlockX();
+        int z = targetBlock.getBlockZ();
+        int startY = Math.max(world.getMinHeight() + 1, targetBlock.getBlockY() + 1);
+        int maxY = Math.min(world.getMaxHeight() - 2, startY + 5);
+
+        for (int y = startY; y <= maxY; y++) {
+            Block feet = world.getBlockAt(x, y, z);
+            Block head = world.getBlockAt(x, y + 1, z);
+            if (!feet.isPassable() || !head.isPassable()) continue;
+            Location spawn = new Location(world, x + 0.5D, y, z + 0.5D, yaw, 0F);
+            return spawn;
+        }
+        return null;
     }
 
     public boolean removeInstance(Entity entity) {
@@ -234,6 +263,7 @@ public final class NpcService {
 
     private void configureEntity(Villager villager, NpcDefinition definition) {
         villager.setAI(false);
+        villager.setGravity(false);
         villager.setInvulnerable(true);
         villager.setCollidable(false);
         villager.setSilent(true);
