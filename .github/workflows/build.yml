@@ -50,13 +50,13 @@ jobs:
       - run: gradle clean test build -PpaperApiVersion=1.21.11-R0.1-SNAPSHOT -PcompileJavaVersion=21 -PbytecodeJavaVersion=21 --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: MiraNPC-0.1.5
-          path: build/libs/MiraNPC-0.1.5.jar
+          name: MiraNPC-0.1.6
+          path: build/libs/MiraNPC-0.1.6.jar
           if-no-files-found: error
       - name: Publish release
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.1.5"; JAR="build/libs/MiraNPC-0.1.5.jar"
-          if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" "$JAR" --clobber; else gh release create "$TAG" "$JAR" --target "${{ github.sha }}" --title "MiraNPC v0.1.5" --notes "Compatibility release: one JAR supporting Paper/Minecraft 1.21.11 through 26.2. CI verifies both API endpoints; production bytecode remains Java 21 compatible."; fi
+          TAG="v0.1.6"; JAR="build/libs/MiraNPC-0.1.6.jar"
+          if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" "$JAR" --clobber; else gh release create "$TAG" "$JAR" --target "${{ github.sha }}" --title "MiraNPC v0.1.6" --notes "Fixes NPC placement reliability, safe placement validation and immediate display refresh for villager, hologram and player modes."; fi
