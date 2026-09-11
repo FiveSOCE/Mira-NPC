@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.mira"
-version = "0.1.6"
+version = "0.1.7"
 
 repositories {
     mavenCentral()
@@ -24,6 +24,7 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
+    options.release.set(bytecodeJavaVersion.get())
 }
 
 tasks.jar {
