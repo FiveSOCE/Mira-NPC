@@ -76,7 +76,13 @@ public final class MnpcCommand implements CommandExecutor, TabCompleter {
             plugin.msg(player, plugin.message("no-target-block"));
             return;
         }
-        service.place(id, block.getLocation(), player.getLocation().getYaw() + 180f);
+
+        Villager villager = service.place(id, block.getLocation(), player.getLocation().getYaw() + 180f);
+        if (villager == null || !villager.isValid()) {
+            plugin.msg(player, "&cCould not place that NPC. Make sure there is clear space above the target block. If there is, check console for a spawn-cancellation warning.");
+            return;
+        }
+
         plugin.msg(player, plugin.message("placed").replace("%npc%", id));
     }
 
