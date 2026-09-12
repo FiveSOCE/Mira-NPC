@@ -7,12 +7,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
@@ -90,15 +91,54 @@ public final class NpcService {
 
     public Villager place(String npcId, Location blockTop, float yaw) {
         NpcDefinition definition = definitions.get(normalize(npcId));
-        if (definition == null) return null;
-        Location spawn = blockTop.clone().add(0.5, 1.0, 0.5);
-        spawn.setYaw(yaw);
-        spawn.setPitch(0f);
-        Villager villager = spawn.getWorld().spawn(spawn, Villager.class, entity -> configureEntity(entity, definition));
-        String instanceId = UUID.randomUUID().toString();
-        villager.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
-        persistInstance(instanceId, definition.id(), villager.getUniqueId(), spawn);
-        return villager;
+        if (definition == null || blockTop == null || blockTop.getWorld() == null) return null;
+
+        Location spawn = findSafePlacement(blockTop, yaw);
+        if (spawn == null) {
+            plugin.getLogger().warning("Could not place NPC '" + definition.id() + "': no safe two-block space above target.");
+            return null;
+        }
+
+        try {
+            Villager villager = spawn.getWorld().spawn(
+                    spawn,
+                    Villager.class,
+                    CreatureSpawnEvent.SpawnReason.COMMAND,
+                    entity -> configureEntity(entity, definition)
+            );
+
+            if (!villager.isValid() || villager.isDead()) {
+                plugin.getLogger().warning("Could not place NPC '" + definition.id() + "': the villager spawn was cancelled or rejected.");
+                villager.remove();
+                return null;
+            }
+
+            String instanceId = UUID.randomUUID().toString();
+            villager.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
+            persistInstance(instanceId, definition.id(), villager.getUniqueId(), spawn);
+            return villager;
+        } catch (RuntimeException ex) {
+            plugin.getLogger().severe("Could not place NPC '" + definition.id() + "': " + ex.getMessage());
+            return null;
+        }
+    }
+
+    private Location findSafePlacement(Location targetBlock, float yaw) {
+        World world = targetBlock.getWorld();
+        if (world == null) return null;
+
+        int x = targetBlock.getBlockX();
+        int z = targetBlock.getBlockZ();
+        int startY = Math.max(world.getMinHeight() + 1, targetBlock.getBlockY() + 1);
+        int maxY = Math.min(world.getMaxHeight() - 2, startY + 5);
+
+        for (int y = startY; y <= maxY; y++) {
+            Block feet = world.getBlockAt(x, y, z);
+            Block head = world.getBlockAt(x, y + 1, z);
+            if (!feet.isPassable() || !head.isPassable()) continue;
+            return new Location(world, x + 0.5D, y, z + 0.5D, yaw, 0F);
+        }
+        return null;
     }
 
     public boolean removeInstance(Villager villager) {
@@ -147,9 +187,24 @@ public final class NpcService {
             Location location = new Location(world, x, y, z, yaw, 0f);
             Villager entity = findInstance(instanceId).orElse(null);
             if (entity == null || !entity.isValid()) {
-                entity = world.spawn(location, Villager.class, villager -> configureEntity(villager, definition));
-                entity.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
-                placedYaml.set(base + ".entity", entity.getUniqueId().toString());
+                try {
+                    entity = world.spawn(
+                            location,
+                            Villager.class,
+                            CreatureSpawnEvent.SpawnReason.COMMAND,
+                            villager -> configureEntity(villager, definition)
+                    );
+                    if (!entity.isValid() || entity.isDead()) {
+                        plugin.getLogger().warning("Could not restore NPC instance '" + instanceId + "': spawn was cancelled or rejected.");
+                        entity.remove();
+                        continue;
+                    }
+                    entity.getPersistentDataContainer().set(instanceIdKey, PersistentDataType.STRING, instanceId);
+                    placedYaml.set(base + ".entity", entity.getUniqueId().toString());
+                } catch (RuntimeException ex) {
+                    plugin.getLogger().warning("Could not restore NPC instance '" + instanceId + "': " + ex.getMessage());
+                    continue;
+                }
             } else {
                 configureEntity(entity, definition);
                 entity.teleport(location);
@@ -212,6 +267,7 @@ public final class NpcService {
 
     private void configureEntity(Villager villager, NpcDefinition definition) {
         villager.setAI(false);
+        villager.setGravity(false);
         villager.setInvulnerable(true);
         villager.setCollidable(false);
         villager.setSilent(true);
