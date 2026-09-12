@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 public final class NpcGuiListener implements Listener {
     private final MiraNPCPlugin plugin;
@@ -42,8 +43,29 @@ public final class NpcGuiListener implements Listener {
     public void onChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
         if (!gui.isAwaiting(player.getUniqueId())) return;
+
+        // This message belongs to the NPC editor, never to public chat. Clearing
+        // viewers as well as cancelling protects against chat plugins that later
+        // replace the renderer or otherwise interfere with cancellation state.
         event.setCancelled(true);
+        event.viewers().clear();
+
         String input = PlainTextComponentSerializer.plainText().serialize(event.message());
+        plugin.getServer().getScheduler().runTask(plugin, () -> gui.acceptChat(player, input));
+    }
+
+    @SuppressWarnings("deprecation")
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onLegacyChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        if (!gui.isAwaiting(player.getUniqueId())) return;
+
+        // Compatibility fallback for chat pipelines/plugins still bridging the
+        // legacy Bukkit chat event. acceptChat is safe if Paper also fired the
+        // modern event: only the first scheduled call consumes the pending input.
+        event.setCancelled(true);
+        event.getRecipients().clear();
+        String input = event.getMessage();
         plugin.getServer().getScheduler().runTask(plugin, () -> gui.acceptChat(player, input));
     }
 }
