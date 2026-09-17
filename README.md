@@ -1,86 +1,140 @@
 # MiraNPC
 
-## Download
+Persistent interactive NPC and hologram system for the Mira Paper server suite.
 
-**Latest compatibility release: v0.1.5**
+MiraNPC supports native Paper player-avatar NPCs, Villager NPCs and hologram-only interactions without Citizens, ProtocolLib, PacketEvents or version-fragile NMS packets.
 
-[**Download MiraNPC-0.1.5.jar**](https://github.com/FiveSOCE/Mira-NPC/releases/download/v0.1.5/MiraNPC-0.1.5.jar)
+## Current Release
 
-[View all releases](https://github.com/FiveSOCE/Mira-NPC/releases)
+**v0.1.8** — compatible with Paper/Minecraft **1.21.11 through 26.2** using Java 21 bytecode.
 
-MiraNPC provides persistent VILLAGER, HOLOGRAM and native Paper Mannequin-backed PLAYER NPCs for the Mira Paper server suite. NPCs can act as interactive command triggers, live PlaceholderAPI displays, rotating leaderboards and timed-state displays.
+[View releases](https://github.com/FiveSOCE/Mira-NPC/releases)
 
-## Requirements / Dependencies
+## Requirements / Integrations
 
-- Paper 1.21.11
+- Paper 1.21.11 through 26.2
 - Java 21
-- PlaceholderAPI optional for dynamic NPC display names
-- MiraFactions optional for faction/FTop placeholders used through PlaceholderAPI
+- PlaceholderAPI optional for dynamic text
+- MiraFactions optional for faction/FTop data consumed through integrations/placeholders
+- Vault-compatible economy provider used by economy leaderboard functionality where applicable
 
-## How MiraNPC Works
+## NPC Modes
 
-Administrators create NPC definitions through the `/mnpc` editor GUI. A definition contains the NPC display name, the command/function it executes and whether that function runs as the clicking `PLAYER` or as `CONSOLE`. Definitions persist in `plugins/MiraNPC/npcs.yml`; placed instances persist in `plugins/MiraNPC/placed.yml`.
+### VILLAGER
 
-VILLAGER mode uses the existing fixed native Villager body. HOLOGRAM mode hides the internal anchor and uses modern TextDisplay lines plus a dedicated Interaction hitbox, so players can click floating text without a visible mob body. PLAYER mode uses Minecraft/Paper's native Mannequin entity to create a player-avatar body with a configured Minecraft skin. No Citizens, ProtocolLib, PacketEvents or NMS dependency is required.
+Uses a native Villager body as an interactive NPC.
 
-Floating text supports multiple PlaceholderAPI-resolved lines and configurable rotation frames. Timed states can change visibility, text and command chains for time windows that cross midnight safely. Command chains preserve PLAYER or CONSOLE execution per action. Function text supports `%player%`, `%username%`, `%uuid%` and player-context PlaceholderAPI values.
+### HOLOGRAM
 
+Uses modern TextDisplay lines with a dedicated Interaction hitbox. The internal anchor remains hidden so the player sees floating interactive text rather than a mob body.
 
-## Built-in leaderboard NPC functions (0.1.4)
+### PLAYER
 
-Two special NPC function values now open player-facing leaderboard GUIs directly instead of dispatching a plain command:
+Uses Paper's native `Mannequin` entity to create a real player-avatar body with Minecraft profile/skin support.
 
-- **`ftop`** (also accepts `f top`) opens a top-10 faction GUI. Entries show total value, land assets, bank, members, claims and power in hover lore. Clicking a faction closes the GUI and runs `/f info <faction>`.
-- **`baltop`** (also accepts `bal top`) opens a top-10 economy GUI using the ranked players' heads. Hover lore shows the player's name and current Vault balance.
+PLAYER mode includes:
 
-These GUIs do not require `miranpc.admin`; that permission remains only for editing/placing NPCs.
+- asynchronous Minecraft profile resolution
+- cached resolved profiles
+- immovable/invulnerable/non-collidable presentation
+- persistent MiraNPC identity
+- normal MiraNPC click/damage handling
+- the same floating text, actions, rotations and timed states as other modes
+
+## Persistence
+
+Definitions and placed instances are stored separately:
+
+```text
+plugins/MiraNPC/npcs.yml
+plugins/MiraNPC/placed.yml
+```
+
+Definitions contain display/action configuration. Placed-instance data owns persistent locations and runtime restoration.
+
+## Text and Actions
+
+MiraNPC supports:
+
+- multiple floating text lines
+- PlaceholderAPI resolution
+- rotating display frames
+- timed display states
+- visibility changes by time window
+- chained PLAYER or CONSOLE actions
+
+Action text supports placeholders such as:
+
+```text
+%player%
+%username%
+%uuid%
+```
+
+plus player-context PlaceholderAPI values when PlaceholderAPI is installed.
+
+## Built-in Leaderboard Functions
+
+Special function values can open player-facing leaderboard GUIs directly:
+
+### `ftop`
+
+Also accepts `f top`.
+
+Shows the top factions with information such as total value, land assets, bank, members, claims and power. Clicking a faction opens its faction information flow.
+
+### `baltop`
+
+Also accepts `bal top`.
+
+Shows ranked player heads with current Vault-backed balances.
+
+These player-facing GUIs do not require `miranpc.admin`.
+
+## Placement and Editor Reliability — v0.1.8
+
+Recent placement/editor hardening includes:
+
+- Villager NPC placement searches for safe two-block space
+- placement uses an intentional command spawn reason
+- managed Villager bodies have gravity disabled
+- blocked placements return clear administrator feedback
+- NPC name/command chat input is captured privately and no longer leaks into public chat
 
 ## Commands
 
-All MiraNPC administration commands require `miranpc.admin`.
+All administration commands require `miranpc.admin`.
 
-| Command | Permission | What it does |
-| --- | --- | --- |
-| `/mnpc` | `miranpc.admin` | Opens the MiraNPC creator/editor GUI. |
-| `/mnpc place <NPC>` | `miranpc.admin` | Places the selected NPC on top of the block the administrator is looking at. |
-| `/mnpc remove` | `miranpc.admin` | Removes the placed MiraNPC the administrator is looking directly at. |
-| `/mnpc delete <NPC>` | `miranpc.admin` | Deletes an NPC definition and associated managed state. |
-| `/mnpc mode <npc> <villager|hologram|player>` | `miranpc.admin` | Changes the NPC body/display backend. |
-| `/mnpc skin <npc> <minecraftName|clear>` | `miranpc.admin` | Sets/clears the native Mannequin player skin and refreshes it live. |
-| `/mnpc lines <npc> <line1|line2|...>` | `miranpc.admin` | Configures multi-line floating text. |
-| `/mnpc action add <npc> <player|console> <command>` | `miranpc.admin` | Appends an action to the NPC command chain. |
-| `/mnpc action clear <npc>` | `miranpc.admin` | Clears the command chain and falls back to the base command. |
-| `/mnpc rotation <npc> <seconds|clear>` | `miranpc.admin` | Controls rotating display frames. |
-| `/mnpc frame <npc> <number> <line1|line2|...>` | `miranpc.admin` | Creates/updates a rotating text frame. |
-| `/mnpc state set <npc> <state> <HH:mm> <HH:mm> <visible> <lines>` | `miranpc.admin` | Creates a timed display state. |
-| `/mnpc state remove <npc> <state>` | `miranpc.admin` | Removes a timed state. |
-| `/mnpc status <npc>` | `miranpc.admin` | Shows mode, skin, frame/action/state counts and the native PLAYER backend status. |
-| `/mnpc reload` | `miranpc.admin` | Reloads base definitions, extension state and display state. |
+| Command | Purpose |
+| --- | --- |
+| `/mnpc` | Opens the creator/editor GUI. |
+| `/mnpc place <npc>` | Places the selected NPC. |
+| `/mnpc remove` | Removes the placed MiraNPC being targeted. |
+| `/mnpc delete <npc>` | Deletes an NPC definition and managed state. |
+| `/mnpc mode <npc> <villager|hologram|player>` | Changes display/body mode. |
+| `/mnpc skin <npc> <minecraftName|clear>` | Sets/clears the native player skin. |
+| `/mnpc lines <npc> <line1|line2|...>` | Sets floating text. |
+| `/mnpc action add <npc> <player|console> <command>` | Adds an action to the chain. |
+| `/mnpc action clear <npc>` | Clears the action chain. |
+| `/mnpc rotation <npc> <seconds|clear>` | Controls rotating frames. |
+| `/mnpc frame <npc> <number> <lines>` | Creates/updates a frame. |
+| `/mnpc state set <npc> ...` | Creates a timed state. |
+| `/mnpc state remove <npc> <state>` | Removes a timed state. |
+| `/mnpc status <npc>` | Shows runtime definition/body status. |
+| `/mnpc reload` | Reloads definitions and display state. |
 
-Regular players do not need a MiraNPC permission merely to click an NPC. The command executed by the NPC can still enforce its own permissions.
+Regular players do not need a MiraNPC permission merely to click an NPC. The action executed by the NPC can enforce its own permissions.
 
 ## Permissions
 
-| Permission | Default | What it does |
+| Permission | Default | Purpose |
 | --- | --- | --- |
-| `miranpc.admin` | OP | Allows all NPC creation, editing, placement, removal and reload tools. |
+| `miranpc.admin` | OP | NPC creation, editing, placement, removal and reload tools. |
 
-## Native PLAYER NPCs (0.1.3)
+## Building
 
-Citizens has been completely removed from MiraNPC.
+```bash
+gradle clean build
+```
 
-On Paper 1.21.11, PLAYER mode now uses the native `org.bukkit.entity.Mannequin` API introduced by modern Minecraft/Paper. The Mannequin is a real player-avatar entity rather than a packet-only fake player.
-
-MiraNPC keeps its existing invisible Villager anchor as the persistent instance/location authority, then manages the native Mannequin body for PLAYER mode. This preserves the existing placement, persistence, hologram, timed-state and action systems.
-
-PLAYER mode currently provides:
-
-- player-shaped native Minecraft avatar body
-- Minecraft username skin resolution using Paper's asynchronous profile API
-- cached resolved profiles to avoid repeating network lookups every display refresh
-- immovable, invulnerable and non-collidable NPC bodies
-- MiraNPC PDC identity on the native body so existing click/damage interaction handling still works
-- floating text, PlaceholderAPI, command chains, rotations and timed states exactly as before
-- automatic cleanup of old/non-native PLAYER body entities when refreshed
-
-This removes the paid Citizens dependency and keeps MiraNPC on the public Paper API rather than version-fragile NMS packets.
+The output JAR is created in `build/libs/`.
