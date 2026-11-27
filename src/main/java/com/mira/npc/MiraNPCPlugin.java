@@ -39,7 +39,7 @@ public final class MiraNPCPlugin extends JavaPlugin {
         long dynamicNameTicks = Math.max(20L, getConfig().getLong("settings.dynamic-name-refresh-ticks", 100L));
         getServer().getScheduler().runTaskTimer(this, dynamicNames::refresh, dynamicNameTicks, dynamicNameTicks);
 
-        getLogger().info("MiraNPC v" + getPluginMeta().getVersion() + " enabled.");
+        getLogger().info("MiraNPC v" + getDescription().getVersion() + " enabled.");
     }
 
     public String message(String key) {
