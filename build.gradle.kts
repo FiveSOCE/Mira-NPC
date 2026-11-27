@@ -28,5 +28,5 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.jar {
-    archiveFileName.set("MiraNPC-${project.version}.jar")
+    archiveFileName.set("MiraNPC_1.18.2.jar")
 }
